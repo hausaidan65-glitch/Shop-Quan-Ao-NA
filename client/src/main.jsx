@@ -34,15 +34,8 @@ const money = (n) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
     n || 0,
   );
-const styleFilters = [
-  "Tất cả",
-  "Outerwear",
-  "Shirt",
-  "Denim",
-  "Dress",
-  "T-shirt",
-  "Skirt",
-];
+const fallbackImage =
+  "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=900&q=85";
 
 function setSeo({ title, description }) {
   document.title = title;
@@ -126,7 +119,7 @@ function App() {
       description: "Website bán quần áo basic",
     });
     setLoading(true);
-    fetch(`${API}/api/products`)
+    fetch("/api/products")
       .then((r) => r.json())
       .then((data) =>
         setProducts(
@@ -138,19 +131,37 @@ function App() {
   }, []);
   useEffect(() => saveCart(cart), [cart]);
 
-  const filtered = useMemo(
-    () =>
-      products.filter((p) => {
-        const text =
-          `${p.name} ${p.category} ${p.description} ${p.material || ""} ${(p.colors || []).join(" ")} ${(p.sizes || []).join(" ")}`.toLowerCase();
-        return (
-          text.includes(deferredKeyword.trim().toLowerCase()) &&
-          (category === "Tất cả" || p.category === category)
-        );
-      }),
-    [products, deferredKeyword, category],
-  );
+  const filtered = useMemo(() => {
+    const normalize = (text = "") =>
+      text
+        .toString()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .trim();
 
+    const key = normalize(deferredKeyword);
+
+    return products.filter((p) => {
+      const text = normalize(
+        `${p.name} ${p.category} ${p.description} ${p.material || ""} ${
+          p.fit || ""
+        } ${(p.colors || []).join(" ")} ${(p.sizes || []).join(" ")}`,
+      );
+
+      const matchSearch = !key || text.includes(key);
+
+      const matchCategory =
+        category === "Tất cả" || normalize(p.category) === normalize(category);
+
+      return matchSearch && matchCategory;
+    });
+  }, [products, deferredKeyword, category]);
+  const categories = useMemo(() => {
+    const list = products.map((p) => p.category).filter(Boolean);
+    return ["Tất cả", ...new Set(list)];
+  }, [products]);
   useEffect(() => {
     const els = document.querySelectorAll(".reveal");
     const observer = new IntersectionObserver(
@@ -188,7 +199,7 @@ function App() {
   }
   function goCheckout() {
     if (!user) {
-      setAuthReason("Đăng nhập để tiếp tục thanh toán đơn hàng của em.");
+      setAuthReason("Đăng nhập để tiếp tục thanh toán đơn hàng ");
       setAuthMode("login");
       setAuthOpen(true);
       return;
@@ -269,26 +280,26 @@ function App() {
     mainEntity: [
       {
         "@type": "Question",
-        name: "Website có giỏ hàng local không?",
+        name: "Làm sao chọn đúng size khi mua quần áo online?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Có. Giỏ hàng dùng localStorage nên dữ liệu vẫn còn khi người dùng tải lại trang trên cùng trình duyệt.",
+          text: "Hãy đo vai, ngực, eo và cân nặng rồi so với bảng size. Nếu số đo nằm giữa hai size, nên chọn size lớn hơn để mặc thoải mái.",
         },
       },
       {
         "@type": "Question",
-        name: "Noir Atelier có thanh toán thật không?",
+        name: "Áo basic nên phối với quần gì cho đẹp?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Đây là website demo cho bài tập nên phần thanh toán là giả lập, không thu tiền thật.",
+          text: "Áo basic dễ phối với jean ống đứng, quần kaki, cargo hoặc chân váy minimal. Nên chọn màu trung tính để outfit sạch và dễ mặc.",
         },
       },
       {
         "@type": "Question",
-        name: "Website áp dụng AEO và AIEO ra sao?",
+        name: "Chất liệu nào phù hợp mặc đi học và đi làm?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Website dùng FAQ, câu trả lời ngắn, Product Schema, Organization Schema, sitemap.xml, robots.txt và llms.txt để công cụ tìm kiếm và AI dễ hiểu nội dung.",
+          text: "Cotton compact, linen pha rayon và denim dày vừa là các chất liệu dễ mặc, thoáng, bền form và phù hợp dùng hằng ngày.",
         },
       },
     ],
@@ -326,7 +337,9 @@ function App() {
       <header className="header">
         <nav className="nav container">
           <button className="brand ghostButton" onClick={goHome}>
-            <ShoppingBag size={22} />
+            <span className="brandLogo" aria-hidden="true">
+              NA
+            </span>
             <span>Noir Atelier</span>
           </button>
           <button
@@ -383,6 +396,7 @@ function App() {
           <Home
             products={filtered}
             allProducts={products}
+            categories={categories}
             loading={loading}
             keyword={keyword}
             setKeyword={setKeyword}
@@ -400,8 +414,6 @@ function App() {
             goProduct={goProduct}
             goCart={goCart}
             goBack={goHome}
-            reviews={reviews}
-            setReviews={setReviews}
           />
         )}
         {view.name === "cart" && (
@@ -434,19 +446,57 @@ function App() {
 
       <footer className="footer">
         <div className="container footerGrid">
-          <div>
-            <b>Noir Atelier</b>
+          <div className="footerBrand">
+            <div className="footerLogoRow">
+              <span className="brandLogo footerLogo" aria-hidden="true">
+                NA
+              </span>
+              <b>Noir Atelier</b>
+            </div>
             <p>
-              React + Node.js + Render. Có index.html, index.jsx, API sản phẩm,
-              đăng nhập/đăng ký localStorage, giỏ hàng bảo vệ bằng login và nội
-              dung tối ưu AEO/AIEO.
+              Shop quần áo basic, minimal và smart casual dành cho học sinh,
+              sinh viên và dân văn phòng.
             </p>
           </div>
-          <div>
-            <span>robots.txt</span>
-            <span>sitemap.xml</span>
-            <span>llms.txt</span>
+
+          <div className="footerCol">
+            <h4>Liên hệ</h4>
+            <p>
+              <span className="footerIcon">☎</span> Hotline: 0909 123 456
+            </p>
+            <p>
+              <span className="footerIcon">✉</span> support@noiratelier.vn
+            </p>
+            <p>
+              <span className="footerIcon">⌖</span> 12 Nguyễn Trãi, Quận 1, TP.
+              Hồ Chí Minh
+            </p>
           </div>
+
+          <div className="footerCol">
+            <h4>Hỗ trợ khách hàng</h4>
+            <a href="#guide">Hướng dẫn chọn size</a>
+            <a href="#faq">Câu hỏi thường gặp</a>
+            <a href="#products">Sản phẩm nổi bật</a>
+          </div>
+
+          <div className="footerCol">
+            <h4>Theo dõi</h4>
+            <p>
+              <span className="footerIcon">f</span> Facebook: Noir Atelier
+              Official
+            </p>
+            <p>
+              <span className="footerIcon">◎</span> Instagram: @noir.atelier
+            </p>
+            <p>
+              <span className="footerIcon">♪</span> TikTok: @noiratelier.vn
+            </p>
+          </div>
+        </div>
+
+        <div className="container footerBottom">
+          <span>© 2026 Noir Atelier.</span>
         </div>
       </footer>
     </>
@@ -468,9 +518,7 @@ function AuthModal({ mode, setMode, reason, onClose, onSuccess }) {
     if (!email.includes("@"))
       return setError("Email chưa đúng định dạng. Ví dụ: hau@gmail.com");
     if (password.length < 6)
-      return setError(
-        "Mật khẩu nên có ít nhất 6 ký tự để demo validate rõ ràng.",
-      );
+      return setError("Mật khẩu nên có ít nhất 6 ký tự.");
 
     if (isLogin) {
       const found = users.find(
@@ -478,7 +526,7 @@ function AuthModal({ mode, setMode, reason, onClose, onSuccess }) {
       );
       if (!found)
         return setError(
-          "Tài khoản chưa tồn tại hoặc sai mật khẩu. Em có thể chuyển qua Đăng ký.",
+          "Tài khoản chưa tồn tại hoặc sai mật khẩu. Bạn có thể chuyển qua Đăng ký.",
         );
       onSuccess({ name: found.name, email: found.email });
       return;
@@ -564,10 +612,7 @@ function AuthModal({ mode, setMode, reason, onClose, onSuccess }) {
         </form>
         <div className="authHint">
           <UserPlus size={18} />
-          <span>
-            Demo dùng localStorage, không gửi dữ liệu lên server. Khi deploy
-            Render vẫn chạy được ngay.
-          </span>
+          <span></span>
         </div>
       </section>
     </div>
@@ -587,7 +632,7 @@ function Home({
   goProduct,
 }) {
   const suggestions = useMemo(
-    () => allProducts.slice(0, 4).map((p) => p.name),
+    () => allProducts.slice(0, 5).map((p) => p.name),
     [allProducts],
   );
   return (
@@ -599,9 +644,7 @@ function Home({
           </p>
           <h1>Minimal clothes, maximum outfit.</h1>
           <p className="heroText">
-            Shop quần áo demo theo style tối giản, sạch, hiện đại. Bản này có
-            chi tiết sản phẩm, giỏ hàng localStorage và thanh toán giả lập để
-            bài của em nhìn hoàn chỉnh hơn.
+            Shop quần áo theo style tối giản, sạch, hiện đại..
           </p>
           <div className="heroActions">
             <a href="#products" className="btn primary">
@@ -662,10 +705,6 @@ function Home({
           <div>
             <p className="eyebrow">Collection</p>
             <h2>Sản phẩm nổi bật</h2>
-            <p className="muted">
-              Thanh tìm kiếm lọc theo tên, mô tả, màu, size. Card có khóa chiều
-              cao mô tả nên không tràn chữ.
-            </p>
           </div>
           <div className="searchPanel">
             <label className="search">
@@ -688,7 +727,11 @@ function Home({
             <div className="suggestions">
               <span>Gợi ý:</span>
               {suggestions.map((name) => (
-                <button key={name} onClick={() => setKeyword(name)}>
+                <button
+                  type="button"
+                  key={name}
+                  onClick={() => setKeyword(name)}
+                >
                   {name}
                 </button>
               ))}
@@ -774,46 +817,39 @@ function Home({
       </section>
       <section className="aiBox container reveal">
         <Bot size={28} />
-        <div>
-          <b>Đã chuẩn bị cho AIEO/GEO</b>
-          <p>
-            Website có FAQ rõ ràng, Product Schema, Organization Schema,
-            sitemap.xml, robots.txt và llms.txt. Nội dung viết theo dạng hỏi-đáp
-            để AI dễ hiểu.
-          </p>
-        </div>
+        <div></div>
       </section>
       <section id="faq" className="faq container section reveal">
-        <p className="eyebrow">FAQ tối ưu AEO/AIEO</p>
+        <p className="eyebrow">FAQ thời trang</p>
         <h2>Câu hỏi thường gặp</h2>
         <details open>
-          <summary>Giỏ hàng có lưu khi reload không?</summary>
+          <summary>Làm sao chọn đúng size khi mua quần áo online?</summary>
           <p>
-            Có. Giỏ hàng được lưu bằng localStorage trên trình duyệt nên reload
-            trang vẫn còn sản phẩm.
+            Hãy đo vai, ngực, eo và cân nặng rồi so với bảng size. Nếu số đo nằm
+            giữa hai size, nên chọn size lớn hơn để mặc thoải mái.
           </p>
         </details>
         <details>
-          <summary>Thanh toán có trừ tiền thật không?</summary>
+          <summary>Áo basic nên phối với quần gì cho đẹp?</summary>
           <p>
-            Không. Đây là checkout giả lập để demo quy trình đặt hàng trong bài
-            tập.
+            Áo basic dễ phối với jean ống đứng, quần kaki, cargo hoặc chân váy
+            minimal. Nên chọn 2-3 màu trung tính để outfit sạch và dễ mặc.
           </p>
         </details>
         <details>
-          <summary>Vì sao thêm vào giỏ lại bắt đăng nhập?</summary>
+          <summary>Chất liệu nào phù hợp mặc đi học và đi làm?</summary>
           <p>
-            Vì đây là UX phổ biến của website bán hàng: người dùng có tài khoản
-            thì giỏ hàng, thông tin giao hàng và lịch sử mua sẽ rõ ràng hơn. Bản
-            demo lưu tài khoản bằng localStorage.
+            Cotton compact, linen pha rayon và denim dày vừa là các chất liệu dễ
+            mặc, thoáng, bền form và phù hợp dùng hằng ngày.
           </p>
         </details>
         <details>
-          <summary>File upload chính là file nào?</summary>
+          <summary>
+            Noir Atelier có đổi trả khi sản phẩm không vừa không?
+          </summary>
           <p>
-            Frontend dùng <b>client/index.html</b> làm file index chính, React
-            mount vào <b>client/src/main.jsx</b>. Khi build, Render tự xuất ra{" "}
-            <b>client/dist/index.html</b>.
+            Website chính sách đổi trả 7 ngày. Khi làm dự án thật, phần này có
+            thể nối thêm đơn hàng, trạng thái đổi trả và thông báo.
           </p>
         </details>
       </section>
@@ -873,6 +909,10 @@ function ProductCard({ product, index = 0, addToCart, goProduct }) {
           alt={product.name}
           loading="lazy"
           decoding="async"
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = fallbackImage;
+          }}
         />
         <span className="tag">{product.category}</span>
       </button>
@@ -909,8 +949,6 @@ function ProductDetail({
   goProduct,
   goCart,
   goBack,
-  reviews,
-  setReviews,
 }) {
   const [size, setSize] = useState("");
   const [color, setColor] = useState("");
@@ -945,6 +983,10 @@ function ProductDetail({
             alt={product.name}
             loading="eager"
             decoding="async"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = fallbackImage;
+            }}
           />
           <span>{product.category}</span>
         </div>
@@ -953,7 +995,7 @@ function ProductDetail({
           <h1>{product.name}</h1>
           <div className="rating">
             <Star size={18} fill="currentColor" /> {product.rating} · 24 đánh
-            giá demo
+            giá
           </div>
           <p className="detailDesc">{product.description}</p>
           <div className="priceLine">
@@ -1014,12 +1056,6 @@ function ProductDetail({
           </div>
         </div>
       </div>
-      <ReviewSection
-        reviews={reviews}
-        setReviews={setReviews}
-        productName={product.name}
-      />
-
       <div className="sectionHead relatedHead">
         <div>
           <p className="eyebrow">Gợi ý phối thêm</p>
@@ -1039,116 +1075,6 @@ function ProductDetail({
     </section>
   );
 }
-
-function ReviewSection({ reviews, setReviews, productName }) {
-  const [form, setForm] = useState({
-    name: "",
-    rating: "5",
-    comment: "",
-  });
-
-  function submitReview(e) {
-    e.preventDefault();
-
-    const name = form.name.trim();
-    const comment = form.comment.trim();
-
-    if (name.length < 2 || comment.length < 5) return;
-
-    const newReview = {
-      id: Date.now(),
-      name,
-      rating: Number(form.rating),
-      comment,
-      productName,
-      date: new Date().toLocaleDateString("vi-VN"),
-    };
-
-    setReviews((prev) => [newReview, ...prev]);
-    setForm({ name: "", rating: "5", comment: "" });
-  }
-
-  return (
-    <section className="reviewBox reveal show">
-      <div className="reviewHeader">
-        <div>
-          <p className="eyebrow">Customer reviews</p>
-          <h2>Đánh giá khách hàng</h2>
-          <p className="muted">
-            Phần đánh giá giúp website có thêm nội dung thật, tăng độ tin cậy và
-            hỗ trợ AEO/AIEO vì AI dễ hiểu trải nghiệm người mua.
-          </p>
-        </div>
-        <div className="reviewScore">
-          <Star size={20} fill="currentColor" />
-          <b>4.8/5</b>
-          <span>{reviews.length} đánh giá</span>
-        </div>
-      </div>
-
-      <div className="reviewLayout">
-        <form className="reviewForm" onSubmit={submitReview}>
-          <label>
-            Tên của bạn
-            <input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Ví dụ: Thanh Hậu"
-              required
-            />
-          </label>
-
-          <label>
-            Số sao
-            <select
-              value={form.rating}
-              onChange={(e) => setForm({ ...form, rating: e.target.value })}
-            >
-              <option value="5">5 sao - Rất hài lòng</option>
-              <option value="4">4 sao - Hài lòng</option>
-              <option value="3">3 sao - Tạm ổn</option>
-              <option value="2">2 sao - Cần cải thiện</option>
-              <option value="1">1 sao - Chưa hài lòng</option>
-            </select>
-          </label>
-
-          <label>
-            Nội dung đánh giá
-            <textarea
-              value={form.comment}
-              onChange={(e) => setForm({ ...form, comment: e.target.value })}
-              placeholder="Nhập cảm nhận về form áo, chất vải, màu sắc, giao hàng..."
-              required
-            />
-          </label>
-
-          <button className="btn primary full" type="submit">
-            Gửi đánh giá
-          </button>
-        </form>
-
-        <div className="reviewList">
-          {reviews.map((review) => (
-            <article className="reviewItem" key={review.id}>
-              <div className="reviewTop">
-                <b>{review.name}</b>
-                <span>
-                  {"★".repeat(review.rating)}
-                  {"☆".repeat(5 - review.rating)}
-                </span>
-              </div>
-              <p>{review.comment}</p>
-              <small>
-                {review.productName || productName} · {review.date || "Demo"}
-              </small>
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function CartPage({
   cart,
   updateQty,
@@ -1167,7 +1093,6 @@ function CartPage({
       <section className="container empty">
         <ShoppingBag size={54} />
         <h1>Giỏ hàng đang trống</h1>
-        <p>Em bấm về collection rồi thêm vài món để test localStorage nha.</p>
         <button className="btn primary" onClick={goHome}>
           Mua sắm ngay
         </button>
@@ -1178,10 +1103,7 @@ function CartPage({
       <div className="sectionHead">
         <div>
           <p className="eyebrow">Local cart</p>
-          <h1>Giỏ hàng của em</h1>
-          <p className="muted">
-            Dữ liệu đang lưu trong localStorage, reload trang vẫn giữ sản phẩm.
-          </p>
+          <h1>Giỏ hàng </h1>
         </div>
         <button className="btn danger" onClick={clearCart}>
           <Trash2 size={17} /> Xóa giỏ
@@ -1293,7 +1215,6 @@ function CheckoutPage({
       <div>
         <p className="eyebrow">Checkout</p>
         <h1>Thanh toán</h1>
-        <p className="muted">Form này chỉ demo</p>
         <form
           className="checkoutForm"
           onSubmit={(e) => {
@@ -1321,8 +1242,8 @@ function CheckoutPage({
             Phương thức thanh toán
             <select>
               <option>Thanh toán khi nhận hàng COD</option>
-              <option>Chuyển khoản demo</option>
-              <option>Ví điện tử demo</option>
+              <option>Chuyển khoản </option>
+              <option>Ví điện tử </option>
             </select>
           </label>
           <div className="payNotice">

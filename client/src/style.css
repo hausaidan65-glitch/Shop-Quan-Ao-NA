@@ -1782,3 +1782,53 @@ html {
     width: 100%;
   }
 }
+.footer {
+  margin-top: 80px;
+  background: #111;
+  color: white;
+  padding: 60px 0 20px;
+}
+
+.footerGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 40px;
+}
+
+.footerCol h4 {
+  margin-bottom: 18px;
+  font-size: 18px;
+}
+
+.footerCol p {
+  color: #d6d6d6;
+  line-height: 1.8;
+  margin: 6px 0;
+}
+
+.footerLogo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.logoIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: white;
+  color: black;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.footerBottom {
+  border-top: 1px solid #2a2a2a;
+  margin-top: 40px;
+  padding-top: 20px;
+  text-align: center;
+  color: #aaa;
+}
