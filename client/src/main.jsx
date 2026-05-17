@@ -119,7 +119,7 @@ function App() {
       description: "Website bán quần áo basic",
     });
     setLoading(true);
-    fetch("http://localhost:5000/api/products")
+    fetch("/api/products")
       .then((r) => r.json())
       .then((data) =>
         setProducts(
