@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: luna-fashion-aeo-aieo
+    env: node
+    plan: free
+    buildCommand: npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: CLIENT_URL
+        value: https://luna-fashion-aeo-aieo.onrender.com
