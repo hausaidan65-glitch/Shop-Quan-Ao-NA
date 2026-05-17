@@ -1054,6 +1054,7 @@ function ProductDetail({
               Xem giỏ hàng
             </button>
           </div>
+          <ProductReviews productId={product.id} />
         </div>
       </div>
       <div className="sectionHead relatedHead">
@@ -1074,6 +1075,130 @@ function ProductDetail({
       </div>
     </section>
   );
+  function ProductReviews({ productId }) {
+    const REVIEW_KEY = `noir_reviews_${productId}`;
+
+    const defaultReviews = [
+      {
+        id: 1,
+        name: "Minh Anh",
+        rating: 5,
+        comment: "Sản phẩm mặc đẹp, form vừa người và chất vải rất ổn.",
+      },
+      {
+        id: 2,
+        name: "Hoàng Nam",
+        rating: 4,
+        comment: "Giao diện dễ dùng, đặt hàng nhanh, sản phẩm đúng mô tả.",
+      },
+    ];
+
+    const [reviews, setReviews] = useState(() => {
+      try {
+        return JSON.parse(localStorage.getItem(REVIEW_KEY)) || defaultReviews;
+      } catch {
+        return defaultReviews;
+      }
+    });
+
+    const [form, setForm] = useState({
+      name: "",
+      rating: "5",
+      comment: "",
+    });
+
+    useEffect(() => {
+      localStorage.setItem(REVIEW_KEY, JSON.stringify(reviews));
+    }, [reviews, REVIEW_KEY]);
+
+    function handleSubmit(e) {
+      e.preventDefault();
+
+      const newReview = {
+        id: Date.now(),
+        name: form.name.trim(),
+        rating: Number(form.rating),
+        comment: form.comment.trim(),
+      };
+
+      if (!newReview.name || !newReview.comment) return;
+
+      setReviews([newReview, ...reviews]);
+
+      setForm({
+        name: "",
+        rating: "5",
+        comment: "",
+      });
+    }
+
+    return (
+      <section className="reviewBox reveal show">
+        <div className="reviewHeader">
+          <div>
+            <p className="eyebrow">Customer reviews</p>
+            <h2>Đánh giá sản phẩm</h2>
+            <p className="muted">
+              Khách hàng có thể để lại cảm nhận sau khi xem hoặc mua sản phẩm.
+            </p>
+          </div>
+          <div className="reviewScore">
+            <Star size={18} fill="currentColor" />
+            <b>
+              {(
+                reviews.reduce((sum, item) => sum + item.rating, 0) /
+                reviews.length
+              ).toFixed(1)}
+            </b>
+            <span>/ 5</span>
+          </div>
+        </div>
+
+        <form className="reviewForm" onSubmit={handleSubmit}>
+          <input
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="Tên của bạn"
+            required
+          />
+
+          <select
+            value={form.rating}
+            onChange={(e) => setForm({ ...form, rating: e.target.value })}
+          >
+            <option value="5">5 sao - Rất hài lòng</option>
+            <option value="4">4 sao - Hài lòng</option>
+            <option value="3">3 sao - Tạm ổn</option>
+            <option value="2">2 sao - Chưa tốt</option>
+            <option value="1">1 sao - Không hài lòng</option>
+          </select>
+
+          <textarea
+            value={form.comment}
+            onChange={(e) => setForm({ ...form, comment: e.target.value })}
+            placeholder="Nhập đánh giá của bạn..."
+            required
+          />
+
+          <button className="btn primary" type="submit">
+            Gửi đánh giá
+          </button>
+        </form>
+
+        <div className="reviewList">
+          {reviews.map((item) => (
+            <article className="reviewItem" key={item.id}>
+              <div>
+                <b>{item.name}</b>
+                <span>{"★".repeat(item.rating)}</span>
+              </div>
+              <p>{item.comment}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  }
 }
 function CartPage({
   cart,
