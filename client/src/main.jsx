@@ -1102,7 +1102,6 @@ function CartPage({
     <section className="container cartPage section">
       <div className="sectionHead">
         <div>
-          <p className="eyebrow">Local cart</p>
           <h1>Giỏ hàng </h1>
         </div>
         <button className="btn danger" onClick={clearCart}>
